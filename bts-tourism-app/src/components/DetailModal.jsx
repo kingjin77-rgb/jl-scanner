@@ -182,6 +182,28 @@ export default function DetailModal({ item, language, onClose }) {
         {/* Details sections */}
         <div style={{ padding: '1rem 1.25rem' }}>
 
+          {/* Local badges (블루리본 etc.) */}
+          {item.localBadges && item.localBadges.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '1.25rem' }}>
+              {item.localBadges.map((badge, i) => (
+                <span key={i} style={{
+                  fontSize: '12px', padding: '5px 12px', borderRadius: '20px', fontWeight: 700,
+                  background: badge.includes('블루리본') ? '#fef3c7' :
+                              badge.includes('배달') ? '#fee2e2' :
+                              badge.includes('100년') || badge.includes('since') ? '#fdf4ff' :
+                              '#f0fdf4',
+                  color: badge.includes('블루리본') ? '#92400e' :
+                         badge.includes('배달') ? '#991b1b' :
+                         badge.includes('100년') || badge.includes('since') ? '#6b21a8' :
+                         '#065f46',
+                  border: '1px solid rgba(0,0,0,0.07)',
+                }}>
+                  {badge}
+                </span>
+              ))}
+            </div>
+          )}
+
           {/* Accommodation price comparison */}
           {isAccommodation && (
             <Section title={t.savingsLabel}>

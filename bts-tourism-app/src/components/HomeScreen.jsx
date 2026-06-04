@@ -1,10 +1,24 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { CITIES, LANGUAGES, I18N } from '../data/tourismData';
+
+function useConcertCountdown() {
+  return useMemo(() => {
+    const now = new Date();
+    const concert = new Date('2026-06-12T18:00:00+09:00');
+    const diff = concert - now;
+    if (diff <= 0) return { days: 0, hours: 0, minutes: 0, past: true };
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return { days, hours, minutes, past: false };
+  }, []);
+}
 
 export default function HomeScreen({ onCitySelect, language, onLanguageChange }) {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const currentLang = LANGUAGES.find(l => l.code === language) || LANGUAGES[0];
   const t = I18N[language] || I18N.en;
+  const countdown = useConcertCountdown();
 
   return (
     <div style={{
@@ -88,29 +102,53 @@ export default function HomeScreen({ onCitySelect, language, onLanguageChange })
           </p>
         </div>
 
-        {/* Concert banner */}
+        {/* Concert D-Day Countdown */}
         <div style={{
           marginTop: '1.25rem',
-          background: 'rgba(168,85,247,0.2)',
-          border: '1px solid rgba(168,85,247,0.4)',
-          borderRadius: '12px',
-          padding: '0.875rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
+          background: 'rgba(255,255,255,0.07)',
+          border: '1px solid rgba(168,85,247,0.35)',
+          borderRadius: '16px',
+          padding: '1rem',
         }}>
-          <div style={{ fontSize: '28px' }}>🎤</div>
-          <div>
-            <p style={{ fontSize: '12px', color: '#c084fc', fontWeight: 600, marginBottom: '2px' }}>
-              {t.concertLabel}
-            </p>
-            <p style={{ fontSize: '11px', color: '#e9d5ff' }}>
-              {t.concertVenue}
-            </p>
-            <p style={{ fontSize: '10px', color: '#a78bfa', marginTop: '2px' }}>
-              {t.concertTip}
-            </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <span style={{ fontSize: '18px' }}>🎤</span>
+            <div>
+              <p style={{ fontSize: '12px', color: '#c084fc', fontWeight: 700 }}>{t.concertLabel}</p>
+              <p style={{ fontSize: '10px', color: '#a78bfa' }}>{t.concertVenue}</p>
+            </div>
           </div>
+
+          {/* Countdown blocks */}
+          {!countdown.past ? (
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+              {[
+                { val: countdown.days, label: language === 'ko' ? '일' : language === 'ja' ? '日' : language === 'zh' ? '天' : 'Days' },
+                { val: countdown.hours, label: language === 'ko' ? '시간' : language === 'ja' ? '時間' : language === 'zh' ? '小时' : 'Hrs' },
+                { val: countdown.minutes, label: language === 'ko' ? '분' : language === 'ja' ? '分' : language === 'zh' ? '分' : 'Min' },
+              ].map(({ val, label }) => (
+                <div key={label} style={{
+                  flex: 1, background: 'rgba(168,85,247,0.25)',
+                  borderRadius: '12px', padding: '8px 4px',
+                  textAlign: 'center', border: '1px solid rgba(168,85,247,0.3)',
+                }}>
+                  <p style={{ fontSize: '22px', fontWeight: 900, color: '#ffffff', lineHeight: 1, marginBottom: '2px' }}>
+                    {String(val).padStart(2, '0')}
+                  </p>
+                  <p style={{ fontSize: '9px', color: '#c084fc', fontWeight: 600, letterSpacing: '0.5px' }}>
+                    {label}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ textAlign: 'center', color: '#c084fc', fontSize: '14px', fontWeight: 700 }}>
+              🎉 Concert Day!
+            </p>
+          )}
+
+          <p style={{ fontSize: '10px', color: '#a78bfa', textAlign: 'center', marginTop: '8px' }}>
+            {t.concertTip}
+          </p>
         </div>
       </div>
 
