@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { CITIES, LANGUAGES, CONCERT_INFO } from '../data/tourismData';
-import StarRating from './StarRating';
+import { CITIES, LANGUAGES, I18N } from '../data/tourismData';
 
 export default function HomeScreen({ onCitySelect, language, onLanguageChange }) {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const currentLang = LANGUAGES.find(l => l.code === language) || LANGUAGES[0];
+  const t = I18N[language] || I18N.en;
 
   return (
     <div style={{
@@ -81,10 +81,10 @@ export default function HomeScreen({ onCitySelect, language, onLanguageChange })
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '36px', marginBottom: '8px', filter: 'drop-shadow(0 0 12px rgba(168,85,247,0.7))' }}>💜</div>
           <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#ffffff', marginBottom: '4px' }}>
-            BTS ARMY Travel Guide
+            {t.appTitle}
           </h1>
           <p style={{ fontSize: '12px', color: '#c084fc', letterSpacing: '1px' }}>
-            부산 인근 도시 여행 • For International ARMY
+            {t.appSubtitle}
           </p>
         </div>
 
@@ -102,13 +102,13 @@ export default function HomeScreen({ onCitySelect, language, onLanguageChange })
           <div style={{ fontSize: '28px' }}>🎤</div>
           <div>
             <p style={{ fontSize: '12px', color: '#c084fc', fontWeight: 600, marginBottom: '2px' }}>
-              BTS World Tour "Arirang"
+              {t.concertLabel}
             </p>
             <p style={{ fontSize: '11px', color: '#e9d5ff' }}>
-              June 12–13, 2026 • Busan Asiad Stadium
+              {t.concertVenue}
             </p>
             <p style={{ fontSize: '10px', color: '#a78bfa', marginTop: '2px' }}>
-              🏨 Stay in nearby cities — save money, see more!
+              {t.concertTip}
             </p>
           </div>
         </div>
@@ -125,7 +125,7 @@ export default function HomeScreen({ onCitySelect, language, onLanguageChange })
           alignItems: 'center',
           gap: '6px',
         }}>
-          🗺️ Choose Your Nearby City
+          {t.chooseCityTitle}
           <span style={{
             fontSize: '10px',
             background: '#7c3aed',
@@ -134,7 +134,7 @@ export default function HomeScreen({ onCitySelect, language, onLanguageChange })
             borderRadius: '10px',
             fontWeight: 600,
           }}>
-            {CITIES.length} cities
+            {CITIES.length}
           </span>
         </h2>
 
@@ -153,15 +153,9 @@ export default function HomeScreen({ onCitySelect, language, onLanguageChange })
           padding: '1.25rem',
         }}>
           <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#6b21a8', marginBottom: '0.75rem' }}>
-            💡 Smart ARMY Travel Tips
+            {t.tipsTitle}
           </h3>
-          {[
-            '🚄 All cities under 1 hour from Busan by KTX or metro',
-            '💰 Hotel prices 60–80% cheaper than central Busan during concert week',
-            '🌱 Vegan & Halal options carefully curated in every city',
-            '💜 RM-visited art spots included in Gyeongju & Changwon',
-            '🗣️ English-speaking staff at all recommended spots',
-          ].map((tip, i) => (
+          {t.tips.map((tip, i) => (
             <p key={i} style={{ fontSize: '12px', color: '#374151', marginBottom: '6px', lineHeight: 1.5 }}>{tip}</p>
           ))}
         </div>

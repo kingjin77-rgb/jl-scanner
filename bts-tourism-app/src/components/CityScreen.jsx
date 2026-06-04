@@ -1,45 +1,41 @@
 import { useState } from 'react';
-import { RESTAURANTS, ATTRACTIONS, TRANSPORT } from '../data/tourismData';
+import { RESTAURANTS, ATTRACTIONS, TRANSPORT, ACCOMMODATIONS, I18N } from '../data/tourismData';
 import PlaceCard from './PlaceCard';
-
-const TAB_LABELS = {
-  restaurants: { en: '🍽️ Restaurants', ja: '🍽️ レストラン', zh: '🍽️ 餐厅', fr: '🍽️ Restaurants', th: '🍽️ ร้านอาหาร' },
-  attractions: { en: '🗺️ Must-See', ja: '🗺️ 観光地', zh: '🗺️ 景点', fr: '🗺️ À Voir', th: '🗺️ สถานที่ท่องเที่ยว' },
-  transport: { en: '🚄 Getting There', ja: '🚄 アクセス', zh: '🚄 交通', fr: '🚄 Transports', th: '🚄 การเดินทาง' },
-};
+import AccommodationCard from './AccommodationCard';
 
 export default function CityScreen({ city, language, onBack, onItemSelect }) {
   const [activeTab, setActiveTab] = useState('restaurants');
   const [filter, setFilter] = useState('all');
+  const t = I18N[language] || I18N.en;
 
   const restaurants = RESTAURANTS.filter(r => r.cityId === city.id);
   const attractions = ATTRACTIONS.filter(a => a.cityId === city.id);
+  const accommodations = ACCOMMODATIONS.filter(h => h.cityId === city.id);
   const transport = TRANSPORT[city.id];
 
   const filterOptions = [
-    { key: 'all', label: 'All' },
-    { key: 'vegan', label: '🌱 Vegan' },
-    { key: 'halal', label: '🌙 Halal' },
-    { key: 'rm-connection', label: '💜 RM Spot' },
-    { key: 'english', label: '🗣️ English' },
+    { key: 'all', label: t.filterAll },
+    { key: 'vegan', label: t.filterVegan },
+    { key: 'halal', label: t.filterHalal },
+    { key: 'rm-connection', label: t.filterRM },
+    { key: 'english', label: t.filterEnglish },
   ];
 
-  const filteredRestaurants = filter === 'all'
-    ? restaurants
-    : restaurants.filter(r => r.tags.includes(filter));
-
-  const filteredAttractions = filter === 'all'
-    ? attractions
-    : attractions.filter(a => a.tags.includes(filter));
+  const filteredRestaurants = filter === 'all' ? restaurants : restaurants.filter(r => r.tags.includes(filter));
+  const filteredAttractions = filter === 'all' ? attractions : attractions.filter(a => a.tags.includes(filter));
 
   const colorMap = {
-    gyeongju: '#b45309',
-    yangsan: '#15803d',
-    ulsan: '#2563eb',
-    gimhae: '#7c3aed',
-    changwon: '#dc2626',
+    gyeongju: '#b45309', yangsan: '#15803d',
+    ulsan: '#2563eb', gimhae: '#7c3aed', changwon: '#dc2626',
   };
   const accentColor = colorMap[city.id] || '#7c3aed';
+
+  const tabs = [
+    { key: 'restaurants', label: t.tabRestaurants },
+    { key: 'attractions', label: t.tabAttractions },
+    { key: 'accommodation', label: t.tabAccommodation },
+    { key: 'transport', label: t.tabTransport },
+  ];
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f0ff' }}>
@@ -47,9 +43,7 @@ export default function CityScreen({ city, language, onBack, onItemSelect }) {
       <div style={{
         background: `linear-gradient(160deg, #1a0533, ${accentColor})`,
         padding: '1.5rem 1.25rem 3.5rem',
-        position: 'relative',
       }}>
-        {/* Back button */}
         <button
           onClick={onBack}
           style={{
@@ -67,18 +61,15 @@ export default function CityScreen({ city, language, onBack, onItemSelect }) {
             fontWeight: 500,
           }}
         >
-          ‹ All Cities
+          {t.backBtn}
         </button>
 
-        {/* City info */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{
             width: '64px', height: '64px',
             borderRadius: '18px',
             background: 'rgba(255,255,255,0.15)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '34px',
           }}>
             {city.emoji}
@@ -91,14 +82,10 @@ export default function CityScreen({ city, language, onBack, onItemSelect }) {
               {city.nameKo} • {city.tagline}
             </p>
             <span style={{
-              display: 'inline-block',
-              marginTop: '6px',
-              fontSize: '11px',
-              background: 'rgba(255,255,255,0.2)',
-              color: '#ffffff',
-              padding: '2px 10px',
-              borderRadius: '10px',
-              fontWeight: 600,
+              display: 'inline-block', marginTop: '6px',
+              fontSize: '11px', background: 'rgba(255,255,255,0.2)',
+              color: '#ffffff', padding: '2px 10px',
+              borderRadius: '10px', fontWeight: 600,
             }}>
               🚄 {city.distance}
             </span>
@@ -106,7 +93,7 @@ export default function CityScreen({ city, language, onBack, onItemSelect }) {
         </div>
       </div>
 
-      {/* Tab bar — floats over header */}
+      {/* Tab bar */}
       <div style={{
         margin: '0 1.25rem',
         marginTop: '-1.75rem',
@@ -118,24 +105,25 @@ export default function CityScreen({ city, language, onBack, onItemSelect }) {
         position: 'relative',
         zIndex: 10,
       }}>
-        {['restaurants', 'attractions', 'transport'].map(tab => (
+        {tabs.map(tab => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
             style={{
               flex: 1,
-              padding: '12px 4px',
-              background: activeTab === tab ? `linear-gradient(135deg, #6b21a8, #7c3aed)` : 'transparent',
+              padding: '10px 2px',
+              background: activeTab === tab.key ? `linear-gradient(135deg, #6b21a8, #7c3aed)` : 'transparent',
               border: 'none',
               cursor: 'pointer',
-              fontSize: '10px',
+              fontSize: '9px',
               fontWeight: 700,
-              color: activeTab === tab ? '#ffffff' : '#6b7280',
+              color: activeTab === tab.key ? '#ffffff' : '#6b7280',
               transition: 'all 0.2s ease',
-              letterSpacing: '0.3px',
+              letterSpacing: '0.2px',
+              lineHeight: 1.3,
             }}
           >
-            {TAB_LABELS[tab][language] || TAB_LABELS[tab].en}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -143,31 +131,22 @@ export default function CityScreen({ city, language, onBack, onItemSelect }) {
       {/* Content */}
       <div style={{ padding: '1.25rem' }}>
         {/* Filter pills */}
-        {activeTab !== 'transport' && (
+        {(activeTab === 'restaurants' || activeTab === 'attractions') && (
           <div style={{
-            display: 'flex',
-            gap: '6px',
-            overflowX: 'auto',
-            paddingBottom: '4px',
-            marginBottom: '1rem',
-            scrollbarWidth: 'none',
+            display: 'flex', gap: '6px', overflowX: 'auto',
+            paddingBottom: '4px', marginBottom: '1rem', scrollbarWidth: 'none',
           }}>
             {filterOptions.map(opt => (
               <button
                 key={opt.key}
                 onClick={() => setFilter(opt.key)}
                 style={{
-                  flexShrink: 0,
-                  padding: '6px 14px',
-                  borderRadius: '20px',
+                  flexShrink: 0, padding: '6px 14px', borderRadius: '20px',
                   border: filter === opt.key ? 'none' : '1px solid #e9d5ff',
                   background: filter === opt.key ? '#7c3aed' : '#ffffff',
                   color: filter === opt.key ? '#ffffff' : '#7c3aed',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  whiteSpace: 'nowrap',
+                  fontSize: '11px', fontWeight: 600, cursor: 'pointer',
+                  transition: 'all 0.15s ease', whiteSpace: 'nowrap',
                 }}
               >
                 {opt.label}
@@ -176,103 +155,123 @@ export default function CityScreen({ city, language, onBack, onItemSelect }) {
           </div>
         )}
 
-        {/* Restaurants tab */}
         {activeTab === 'restaurants' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {filteredRestaurants.length === 0 && (
-              <EmptyState filter={filter} />
-            )}
-            {filteredRestaurants.map((r, i) => (
-              <PlaceCard key={r.id} item={r} type="restaurant" index={i} onSelect={onItemSelect} accentColor={accentColor} />
-            ))}
+            {filteredRestaurants.length === 0
+              ? <EmptyState />
+              : filteredRestaurants.map((r, i) => (
+                  <PlaceCard key={r.id} item={r} type="restaurant" index={i} onSelect={onItemSelect} accentColor={accentColor} t={t} />
+                ))}
           </div>
         )}
 
-        {/* Attractions tab */}
         {activeTab === 'attractions' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {filteredAttractions.length === 0 && (
-              <EmptyState filter={filter} />
-            )}
-            {filteredAttractions.map((a, i) => (
-              <PlaceCard key={a.id} item={a} type="attraction" index={i} onSelect={onItemSelect} accentColor={accentColor} />
-            ))}
+            {filteredAttractions.length === 0
+              ? <EmptyState />
+              : filteredAttractions.map((a, i) => (
+                  <PlaceCard key={a.id} item={a} type="attraction" index={i} onSelect={onItemSelect} accentColor={accentColor} t={t} />
+                ))}
           </div>
         )}
 
-        {/* Transport tab */}
+        {activeTab === 'accommodation' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <AccommodationBanner t={t} accentColor={accentColor} />
+            {accommodations.length === 0
+              ? <EmptyState />
+              : accommodations.map((h, i) => (
+                  <AccommodationCard key={h.id} item={h} index={i} onSelect={onItemSelect} accentColor={accentColor} t={t} />
+                ))}
+          </div>
+        )}
+
         {activeTab === 'transport' && transport && (
-          <TransportInfo transport={transport} city={city} accentColor={accentColor} />
+          <TransportInfo transport={transport} accentColor={accentColor} t={t} />
         )}
       </div>
     </div>
   );
 }
 
-function EmptyState({ filter }) {
+function AccommodationBanner({ t, accentColor }) {
   return (
     <div style={{
-      textAlign: 'center',
-      padding: '3rem 1rem',
-      color: '#9ca3af',
+      background: `linear-gradient(135deg, #fef3c7, #fde68a)`,
+      borderRadius: '14px',
+      padding: '12px 16px',
+      marginBottom: '4px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px',
     }}>
+      <span style={{ fontSize: '28px' }}>🏷️</span>
+      <div>
+        <p style={{ fontSize: '12px', fontWeight: 700, color: '#92400e', marginBottom: '2px' }}>
+          Concert Week Price Surge Alert
+        </p>
+        <p style={{ fontSize: '11px', color: '#78350f', lineHeight: 1.4 }}>
+          Busan hotels: up to 7.5× normal price. Stay here and commute!
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#9ca3af' }}>
       <div style={{ fontSize: '40px', marginBottom: '12px' }}>🔍</div>
-      <p style={{ fontSize: '14px', fontWeight: 500 }}>No results for "{filter}" filter</p>
+      <p style={{ fontSize: '14px', fontWeight: 500 }}>No results for this filter</p>
       <p style={{ fontSize: '12px', marginTop: '6px' }}>Try "All" to see everything</p>
     </div>
   );
 }
 
-function TransportInfo({ transport, city, accentColor }) {
+function TransportInfo({ transport, accentColor, t }) {
   const options = Object.entries(transport).filter(([k]) => k !== 'tip');
+  const icons = { byTrain: '🚄', bySubway: '🚇', byBus: '🚌' };
+  const labels = { byTrain: 'By Train (KTX)', bySubway: 'By Subway', byBus: 'By Bus' };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {options.map(([key, value]) => {
-        const icons = { byTrain: '🚄', bySubway: '🚇', byBus: '🚌' };
-        const labels = { byTrain: 'By Train (KTX)', bySubway: 'By Subway', byBus: 'By Bus' };
-        return (
-          <div key={key} style={{
-            background: '#ffffff',
-            borderRadius: '14px',
-            padding: '1rem',
-            boxShadow: '0 2px 10px rgba(107,33,168,0.08)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-              <span style={{ fontSize: '24px' }}>{icons[key]}</span>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151' }}>{labels[key]}</span>
-            </div>
-            <p style={{ fontSize: '13px', color: '#6b7280', lineHeight: 1.5 }}>{value}</p>
+      {options.map(([key, value]) => (
+        <div key={key} style={{
+          background: '#ffffff', borderRadius: '14px', padding: '1rem',
+          boxShadow: '0 2px 10px rgba(107,33,168,0.08)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+            <span style={{ fontSize: '24px' }}>{icons[key]}</span>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151' }}>{labels[key]}</span>
           </div>
-        );
-      })}
+          <p style={{ fontSize: '13px', color: '#6b7280', lineHeight: 1.5 }}>{value}</p>
+        </div>
+      ))}
 
       {transport.tip && (
         <div style={{
-          background: `linear-gradient(135deg, #faf5ff, #f0fdf4)`,
-          border: `1px solid #e9d5ff`,
-          borderRadius: '14px',
-          padding: '1rem',
+          background: '#faf5ff', border: '1px solid #e9d5ff',
+          borderRadius: '14px', padding: '1rem',
         }}>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: accentColor, marginBottom: '4px' }}>💡 Pro Tip</p>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: accentColor, marginBottom: '4px' }}>
+            {t.proTip}
+          </p>
           <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.5 }}>{transport.tip}</p>
         </div>
       )}
 
       <div style={{
-        background: '#ffffff',
-        borderRadius: '14px',
-        padding: '1rem',
+        background: '#ffffff', borderRadius: '14px', padding: '1rem',
         boxShadow: '0 2px 10px rgba(107,33,168,0.08)',
       }}>
         <p style={{ fontSize: '13px', fontWeight: 700, color: '#374151', marginBottom: '8px' }}>
-          🎟️ Useful Transport Apps
+          {t.transportApps}
         </p>
         {[
           ['Korail App', 'KTX tickets — accepts international cards'],
           ['Naver Maps', 'Navigation in English, Japanese, Chinese'],
           ['T-Money', 'Transit card — works on all buses & subways'],
-          ['Kakao Taxi', 'Ride-hailing — English destination input available'],
+          ['Kakao Taxi', 'Ride-hailing — English destination input'],
         ].map(([app, desc]) => (
           <div key={app} style={{ display: 'flex', gap: '8px', marginBottom: '6px', alignItems: 'flex-start' }}>
             <span style={{ fontSize: '11px', background: '#f5f0ff', color: '#7c3aed', padding: '2px 8px', borderRadius: '8px', fontWeight: 600, flexShrink: 0, marginTop: '1px' }}>{app}</span>
