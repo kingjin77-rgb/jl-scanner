@@ -1,9 +1,6 @@
-[theme]
-primaryColor = "#FF4B4B"
-backgroundColor = "#0E1117"
-secondaryBackgroundColor = "#262730"
-textColor = "#FAFAFA"
-font = "sans serif"
+[naver]
+client_id = "AlnTbnXnFthGzFcEuQMy"
+client_secret = "YOUR_CLIENT_SECRET"
 
-[server]
-maxUploadSize = 200
+[api]
+public_data_key = "92b5632ea31cf343fbdaad04fdb9228cfacd78f6271dacf97a264a11fc5245d3"
