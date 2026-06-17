@@ -24,6 +24,8 @@ from bs4 import BeautifulSoup
 import time
 import os
 from urllib.parse import quote_plus, urlparse
+import json
+import hashlib
 
 # ==================== 페이지 설정 ====================
 
@@ -254,6 +256,94 @@ class DetectiveAgent:
         
         return contacts
 
+# ==================== LLM 분석기 (토큰 최적화) ====================
+
+class LLMAnalyzer:
+    """Claude AI 공고문 분석기 — 토큰 절약 최적화 설계
+
+    절약 전략:
+      1. 텍스트 절단: 제목 100자 + 내용 200자만 전송
+      2. 인메모리 캐시: 동일 텍스트 중복 호출 차단
+      3. 응답 토큰 상한: max_tokens=120 (JSON 한 줄)
+      4. 최소 시스템 프롬프트: 한 줄 지시
+      5. 저비용 모델: Haiku 4.5 사용
+    """
+
+    _MODEL = "claude-haiku-4-5-20251001"
+    _MAX_TOKENS = 120       # 응답 토큰 상한
+    _SYSTEM = "법무법인 집단등기 선정 공고 분석기. JSON만 반환."
+
+    def __init__(self, api_key: str):
+        import anthropic
+        self._client = anthropic.Anthropic(api_key=api_key)
+        self._cache: dict = {}
+        self.input_tokens = 0
+        self.output_tokens = 0
+        self.api_calls = 0
+        self.cache_hits = 0
+
+    @property
+    def total_tokens(self) -> int:
+        return self.input_tokens + self.output_tokens
+
+    @property
+    def est_cost_krw(self) -> float:
+        # Haiku 4.5: 입력 $0.80/1M, 출력 $4.00/1M (1 USD ≈ 1380 KRW)
+        usd = (self.input_tokens * 0.80 + self.output_tokens * 4.00) / 1_000_000
+        return usd * 1380
+
+    def _cache_key(self, title: str, desc: str) -> str:
+        raw = f"{title[:80]}|{desc[:150]}"
+        return hashlib.md5(raw.encode("utf-8")).hexdigest()
+
+    def analyze(self, title: str, desc: str) -> dict:
+        """공고문 분석. 캐시 + 텍스트 절단으로 토큰 최소화."""
+        key = self._cache_key(title, desc)
+        if key in self._cache:
+            self.cache_hits += 1
+            return self._cache[key]
+
+        # 핵심: 텍스트 절단으로 입력 토큰 절약
+        snippet = f"제목:{title[:100]}\n내용:{desc[:200]}"
+        prompt = (
+            f"{snippet}\n\n"
+            "위 글이 법무법인/법무사 집단등기 선정 공고인지 판단 후 JSON만 출력:\n"
+            '{"valid":true/false,"contact":"전화번호or-","deadline":"마감일or-","lawfirm":"법인명or-"}'
+        )
+
+        fallback = {"valid": None, "contact": "-", "deadline": "-", "lawfirm": "-"}
+
+        try:
+            resp = self._client.messages.create(
+                model=self._MODEL,
+                max_tokens=self._MAX_TOKENS,
+                system=self._SYSTEM,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            self.input_tokens += resp.usage.input_tokens
+            self.output_tokens += resp.usage.output_tokens
+            self.api_calls += 1
+
+            raw = resp.content[0].text.strip()
+            m = re.search(r'\{[^}]+\}', raw, re.DOTALL)
+            result = json.loads(m.group()) if m else fallback
+        except Exception:
+            result = fallback
+
+        self._cache[key] = result
+        return result
+
+    def stats(self) -> dict:
+        return {
+            "API 호출": self.api_calls,
+            "캐시 히트": self.cache_hits,
+            "입력 토큰": f"{self.input_tokens:,}",
+            "출력 토큰": f"{self.output_tokens:,}",
+            "총 토큰": f"{self.total_tokens:,}",
+            "예상 비용": f"약 {self.est_cost_krw:.2f}원"
+        }
+
+
 # ==================== AGENT 4: 파싱 에이전트 ====================
 
 class ParserAgent:
@@ -385,7 +475,7 @@ class ParserAgent:
         # 둘 다 있어야 통과
         return has_law and has_action
     
-    def parse_results(self, search_results, apt_name, days_limit=14, extract_manager=True):
+    def parse_results(self, search_results, apt_name, days_limit=14, extract_manager=True, llm_analyzer=None):
         """검색 결과 파싱"""
         parsed_data = []
         cutoff_date = datetime.now() - timedelta(days=days_limit)
@@ -422,6 +512,24 @@ class ParserAgent:
                     except:
                         pass
                 
+                # LLM 강화 분석 (선택적 — 토큰 절약 최적화 적용)
+                ai_flag = "-"
+                if llm_analyzer:
+                    llm_data = llm_analyzer.analyze(title, description)
+                    # regex 미추출 필드를 LLM 결과로 보완 (토큰 낭비 최소화)
+                    if (not contact or contact == "-") and llm_data.get("contact", "-") not in ("-", "없음", ""):
+                        contact = llm_data["contact"]
+                    if deadline == "미상" and llm_data.get("deadline", "-") not in ("-", "없음", ""):
+                        deadline = llm_data["deadline"]
+                    if not lawfirm and llm_data.get("lawfirm", "-") not in ("-", "없음", ""):
+                        lawfirm = llm_data["lawfirm"]
+                    if llm_data.get("valid") is False:
+                        ai_flag = "⚠️검증필요"
+                    elif llm_data.get("valid") is True:
+                        ai_flag = "✅확인됨"
+                    else:
+                        ai_flag = "🔄분석중"
+
                 parsed_data.append({
                     "발견일시": datetime.now().strftime("%Y-%m-%d %H:%M"),
                     "단지명": apt_name,
@@ -433,6 +541,7 @@ class ParserAgent:
                     "카페지기명": manager_name if manager_name else "-",
                     "카페지기ID": manager_id if manager_id else "-",
                     "연락처": contact if contact else "-",
+                    "AI검증": ai_flag,
                     "URL": cafe_url,
                     "공고내용": description[:300] + "..." if len(description) > 300 else description
                 })
@@ -449,10 +558,11 @@ class ParserAgent:
 class OrchestratorAgent:
     """전체 워크플로우 조율"""
     
-    def __init__(self, searcher, parser, detective=None):
+    def __init__(self, searcher, parser, detective=None, llm_analyzer=None):
         self.searcher = searcher
         self.parser = parser
         self.detective = detective
+        self.llm_analyzer = llm_analyzer
     
     def run_scan(self, apt_list, extract_manager=True, detective_mode=False, progress_callback=None, results_callback=None):
         """전체 스캔 실행"""
@@ -468,9 +578,10 @@ class OrchestratorAgent:
             
             # Step 2: 파싱 (카페지기 기본 추출)
             parsed_results = self.parser.parse_results(
-                search_results, 
+                search_results,
                 apt_name,
-                extract_manager=extract_manager
+                extract_manager=extract_manager,
+                llm_analyzer=self.llm_analyzer
             )
             
             # Step 3: 탐정 모드 (선택)
@@ -559,7 +670,48 @@ with st.sidebar:
         value=False,
         help="구글/인스타/카톡/페북/밴드 전체 검색 (시간 많이 증가)"
     )
-    
+
+    st.markdown("---")
+
+    # ── Claude AI 토큰 절약 분석 ──────────────────────────────
+    st.subheader("🤖 AI 강화 분석")
+    use_llm = st.checkbox(
+        "🧠 Claude AI 분석 활성화",
+        value=False,
+        help="Claude Haiku로 연락처·마감일·법인명 추출 정확도 향상 (토큰 절약 최적화 적용)"
+    )
+
+    claude_key = ""
+    if use_llm:
+        claude_key = st.text_input(
+            "Claude API Key",
+            type="password",
+            value=st.session_state.get("claude_key_input", ""),
+            help="Anthropic Console에서 발급 (claude.ai/settings)"
+        )
+        if claude_key:
+            st.session_state["claude_key_input"] = claude_key
+
+    # LLMAnalyzer 세션 관리 (토큰 카운터 유지)
+    if use_llm and claude_key:
+        prev_key = st.session_state.get("_llm_api_key", "")
+        if prev_key != claude_key or st.session_state.get("llm_analyzer") is None:
+            st.session_state["llm_analyzer"] = LLMAnalyzer(claude_key)
+            st.session_state["_llm_api_key"] = claude_key
+            st.success("✅ Claude AI 준비 완료")
+    elif not use_llm:
+        st.session_state["llm_analyzer"] = None
+
+    llm_analyzer = st.session_state.get("llm_analyzer")
+
+    # 토큰 사용 현황 표시
+    if llm_analyzer and llm_analyzer.api_calls > 0:
+        with st.expander("📊 토큰 사용 현황", expanded=False):
+            for label, val in llm_analyzer.stats().items():
+                st.metric(label, val)
+    elif use_llm and claude_key:
+        st.info("💡 스캔 실행 후 토큰 현황이 여기 표시됩니다")
+
     st.markdown("---")
     
     st.markdown("""
@@ -1114,7 +1266,7 @@ with tab1:
                     
                     if response.status_code == 200:
                         items = response.json().get("items", [])
-                        results = parser.parse_results(items, region, extract_manager=extract_manager)
+                        results = parser.parse_results(items, region, extract_manager=extract_manager, llm_analyzer=llm_analyzer)
                         
                         # 탐정 모드
                         if detective_mode and detective and results:
@@ -1139,7 +1291,7 @@ with tab1:
             searcher = SearchAgent(NAVER_CLIENT_ID, naver_secret)
             parser = ParserAgent()
             detective = DetectiveAgent() if detective_mode else None
-            orchestrator = OrchestratorAgent(searcher, parser, detective)
+            orchestrator = OrchestratorAgent(searcher, parser, detective, llm_analyzer=llm_analyzer)
             
             # 진행 상황
             progress_bar = st.progress(0)
@@ -1312,7 +1464,7 @@ with tab1:
             
             # URL 컬럼을 링크 형식으로 변환
             display_df = df_display.copy()
-            display_cols = ['발견일시', '단지명', '공고제목', '카페명', '연락처']
+            display_cols = ['발견일시', '단지명', '공고제목', '카페명', '연락처', 'AI검증']
             st.dataframe(
                 display_df[display_cols],
                 use_container_width=True,
