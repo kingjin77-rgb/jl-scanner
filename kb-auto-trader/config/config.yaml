@@ -1,0 +1,144 @@
+# ============================================================
+# KB증권 해외주식 자동매매 시스템 설정
+# ============================================================
+
+# KB증권 API 설정
+api:
+  base_url: "https://openapi.kbsec.com"
+  websocket_url: "wss://openapi.kbsec.com/ws/v1"
+  app_key: "${KB_APP_KEY}"           # .env 파일에 설정
+  app_secret: "${KB_APP_SECRET}"     # .env 파일에 설정
+  account_number: "${KB_ACCOUNT_NO}" # 계좌번호 (ex: 12345678-01)
+  account_type: "01"                 # 01: 해외주식
+  is_paper_trading: true             # true: 모의투자, false: 실거래
+  token_expire_hours: 24
+
+# 거래 기본 설정
+trading:
+  market: "NASD"         # NASD(나스닥), NYSE(뉴욕), AMEX(아메리칸), SEHK(홍콩)
+  currency: "USD"
+  max_positions: 10      # 최대 동시 보유 종목 수
+  order_type: "00"       # 00: 지정가, 01: 시장가
+  slippage_pct: 0.05     # 슬리피지 허용 비율 (%)
+
+  # 매매 대상 종목 (심볼 리스트)
+  watchlist:
+    - "AAPL"   # 애플
+    - "MSFT"   # 마이크로소프트
+    - "NVDA"   # 엔비디아
+    - "GOOGL"  # 알파벳
+    - "AMZN"   # 아마존
+    - "META"   # 메타
+    - "TSLA"   # 테슬라
+    - "AVGO"   # 브로드컴
+    - "AMD"    # AMD
+    - "INTC"   # 인텔
+
+# 리스크 관리 설정
+risk:
+  max_portfolio_loss_pct: 10.0    # 포트폴리오 최대 손실 비율 (%)
+  max_position_size_pct: 15.0     # 단일 종목 최대 비중 (%)
+  min_position_size_pct: 2.0      # 단일 종목 최소 비중 (%)
+  stop_loss_pct: 3.0              # 손절선 (%)
+  take_profit_pct: 8.0            # 수익실현선 (%)
+  trailing_stop_pct: 2.0          # 트레일링 스탑 (%)
+  daily_loss_limit_pct: 3.0       # 일일 최대 손실 한도 (%)
+  position_sizer: "kelly"         # kelly, fixed_pct, equal_weight
+  kelly_fraction: 0.25            # Kelly 분수 (0.25 = 1/4 Kelly)
+  max_drawdown_pct: 15.0          # 최대 낙폭 도달 시 거래 중단
+
+# 전략 설정
+strategies:
+  active:
+    - name: "MomentumStrategy"
+      weight: 0.35
+      params:
+        lookback_days: 20
+        momentum_threshold: 0.05
+        volume_multiplier: 1.5
+
+    - name: "RSIStrategy"
+      weight: 0.30
+      params:
+        rsi_period: 14
+        oversold: 30
+        overbought: 70
+        rsi_exit_oversold: 40
+        rsi_exit_overbought: 60
+
+    - name: "MACDStrategy"
+      weight: 0.20
+      params:
+        fast_period: 12
+        slow_period: 26
+        signal_period: 9
+
+    - name: "BollingerStrategy"
+      weight: 0.15
+      params:
+        bb_period: 20
+        bb_std: 2.0
+        squeeze_threshold: 0.1
+
+  # 신호 결합 방식: vote(다수결), weighted(가중 평균), unanimous(만장일치)
+  signal_combine: "weighted"
+  min_signal_score: 0.6   # 최소 신호 점수 (0~1)
+
+# 스케줄러 설정
+scheduler:
+  # 미국 동부 시간 기준 (서머타임 자동 적용)
+  market_open: "09:30"        # 장 시작
+  market_close: "16:00"       # 장 마감
+  pre_market_start: "04:00"   # 프리마켓 시작
+  after_hours_end: "20:00"    # 애프터마켓 종료
+  timezone: "America/New_York"
+
+  jobs:
+    - name: "update_prices"
+      interval_seconds: 60    # 1분마다 가격 업데이트
+    - name: "run_strategies"
+      interval_seconds: 300   # 5분마다 전략 실행
+    - name: "rebalance"
+      cron: "0 10 * * 1-5"    # 매주 월-금 오전 10시 리밸런싱
+    - name: "daily_report"
+      cron: "0 17 * * 1-5"    # 매주 월-금 오후 5시 일간 리포트
+    - name: "token_refresh"
+      interval_hours: 23      # 23시간마다 토큰 갱신
+
+# 알림 설정
+notification:
+  telegram:
+    enabled: true
+    bot_token: "${TELEGRAM_BOT_TOKEN}"
+    chat_id: "${TELEGRAM_CHAT_ID}"
+    notify_on:
+      - order_placed
+      - order_filled
+      - stop_loss_hit
+      - take_profit_hit
+      - daily_report
+      - system_error
+      - risk_alert
+
+# 데이터 저장 설정
+storage:
+  db_path: "data/trading.db"
+  log_dir: "logs/"
+  backup_dir: "data/backups/"
+  price_cache_hours: 24
+
+# 대시보드 설정
+dashboard:
+  host: "0.0.0.0"
+  port: 8501
+  refresh_seconds: 30
+  theme: "dark"
+
+# 백테스트 설정
+backtest:
+  start_date: "2023-01-01"
+  end_date: "2024-12-31"
+  initial_capital: 10000000   # 초기 자본 (KRW) 또는 USD
+  commission_pct: 0.25        # 수수료 (%)
+  tax_pct: 0.25               # 세금 (%)
+  benchmark: "QQQ"            # 벤치마크 ETF
